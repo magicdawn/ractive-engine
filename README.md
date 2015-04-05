@@ -24,5 +24,9 @@ are supported. Actually they are the same thing.
 
 # TODO
 - add introduction to recursive extend. It's supported now.
+- add more test
+- add document
+- set Ractive as git submodule
+- publish to npm
 - add express support
 - add ccc ds project support
