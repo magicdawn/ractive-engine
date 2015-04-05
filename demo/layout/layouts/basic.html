@@ -1,0 +1,22 @@
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>
+    {{#block title}}
+    {{/block}}
+  </title>
+</head>
+<body>
+  <div class="header">
+    {{>partials.header}}
+  </div>
+  <div class="middle">
+    {{#block body}}
+      default
+    {{/block}}
+  </div>
+  <div class="footer">
+    {{>partials.footer}}
+  </div>
+</body>
+</html>

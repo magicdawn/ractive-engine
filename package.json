@@ -1,0 +1,34 @@
+{
+  "name": "ractive-engine",
+  "version": "0.0.1",
+  "description": "Template engine for node.js with Ractive.js",
+  "main": "index.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "mocha -r"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:magicdawn/ractive-engine.git"
+  },
+  "keywords": [
+    "ractive",
+    "template",
+    "jade",
+    "block",
+    "extend",
+    "mustache"
+  ],
+  "author": "magicdawn",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/magicdawn/ractive-engine/issues"
+  },
+  "homepage": "https://github.com/magicdawn/ractive-engine",
+  "dependencies": {
+    "bluebird": "^2.9.24",
+    "lodash": "^3.6.0"
+  }
+}
