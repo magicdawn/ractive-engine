@@ -30,3 +30,6 @@ are supported. Actually they are the same thing.
 - publish to npm
 - add express support
 - add ccc ds project support
+
+# License
+the MIT License (magicdawn@qq.com)
