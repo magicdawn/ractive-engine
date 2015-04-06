@@ -28,7 +28,6 @@
   },
   "homepage": "https://github.com/magicdawn/ractive-engine",
   "dependencies": {
-    "bluebird": "^2.9.24",
-    "lodash": "^3.6.0"
+    "debug": "^2.1.3"
   }
 }

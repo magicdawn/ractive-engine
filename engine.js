@@ -6,7 +6,8 @@ var types = Ractive.types;
 var fs = require('fs');
 var path = require('path');
 var fixPath = require('./util').fixPath;
-// var _ = require('lodash');
+var getNodeRef = require('./util').getNodeRef;
+var debug = require('debug')('magicdawn:ractive-engine');
 
 /**
  * do exports
@@ -32,6 +33,7 @@ function RactiveEngine(options) {
   if (typeof options.enableCache === 'boolean') {
     this.enableCache = options.enableCache;
   }
+  debug('view cache enabled : %s', this.enableCache);
   this.cache = {};
 
   /**
@@ -45,18 +47,37 @@ function RactiveEngine(options) {
    * 如果没有设置两个root,那么就
    * 以template的path为base,resolve partial & layout的path
    */
-  this.layoutRoot = null;
-  this.partialRoot = null;
+  this.layoutRoot = options.layoutRoot ? path.resolve(options.layoutRoot) : null;
+  this.partialRoot = options.partialRoot ? path.resolve(options.partialRoot) : null;
 }
 
 /**
  * renderFile def
  */
-RactiveEngine.prototype.renderFileSync = function(viewPath, locals) {
+RactiveEngine.prototype.renderFile = function(viewPath, locals) {
   viewPath = path.resolve(viewPath);
-  var template = this._read(viewPath);
-  var templateParsed = Ractive.parse(template);
-  var full = this._getFull(templateParsed, viewPath);
+  var full = this._getFinalFull(viewPath);
+
+  // 读partials
+  var self = this;
+  var readedPartials = {};
+  full.partials.forEach(function(item) {
+    readedPartials[item.name] = self._read(item.path);
+  });
+
+  return this._render(full.nodes, locals, readedPartials);
+}
+
+/**
+ * 为full加cache,partials 不存具体内容
+ */
+RactiveEngine.prototype._getFinalFull = function(viewPath) {
+  if (this.enableCache && this.cache[viewPath]) {
+    debug('reading full cache for %s', viewPath);
+    return this.cache[viewPath];
+  }
+
+  var full = this._getFull(viewPath);
 
   /**
    * full = {
@@ -66,13 +87,7 @@ RactiveEngine.prototype.renderFileSync = function(viewPath, locals) {
    *   ]
    * }
    */
-  var self = this;
-  var readedPartials = {};
-  full.partials.forEach(function(item) {
-    readedPartials[item.name] = self._read(item.path);
-  });
 
-  // 最后去除各个block壳
   function removeBlock(nodes) {
     for (var index = 0, len = nodes.length; index < len; index++) {
       var node = nodes[index];
@@ -89,10 +104,17 @@ RactiveEngine.prototype.renderFileSync = function(viewPath, locals) {
       }
     };
   }
+
+  // 最后去除各个block壳
   removeBlock(full.nodes);
 
-  return this._render(full.nodes, locals, readedPartials);
-}
+  // 存cache
+  if (this.enableCache) {
+    this.cache[viewPath] = full;
+  }
+
+  return full;
+};
 
 /**
  * return parsed templa
@@ -105,11 +127,14 @@ RactiveEngine.prototype._read = function(viewPath) {
 
   if (this.enableCache) {
     if (this.cache[viewPath]) {
+      debug('reading file cache for %s', viewPath);
       return this.cache[viewPath];
     } else {
+      debug('reading file %s', viewPath);
       return this.cache[viewPath] = fs.readFileSync(viewPath, 'utf8');
     }
   } else {
+    debug('reading file %s', viewPath);
     return fs.readFileSync(viewPath, 'utf8');
   }
 };
@@ -138,10 +163,12 @@ RactiveEngine.prototype._render = function(nodes, locals, partials) {
  *   ]
  * }
  */
-RactiveEngine.prototype._getFull = function(templateParsed, templatePath) {
+RactiveEngine.prototype._getFull = function(templatePath) {
   /**
    * get a template's layout & blocks
    */
+  var template = this._read(templatePath);
+  var templateParsed = Ractive.parse(template);
   var result = this._getChildLayout(templateParsed);
   var layout = result.extend;
   var blocks = result.blocks;
@@ -167,9 +194,7 @@ RactiveEngine.prototype._getFull = function(templateParsed, templatePath) {
     layoutPath = path.resolve(this.layoutRoot, layout);
   }
 
-  var layoutTemplate = this._read(layoutPath);
-  var layoutParsed = Ractive.parse(layoutTemplate);
-  var layoutFull = this._getFull(layoutParsed, layoutPath); // recursive
+  var layoutFull = this._getFull(layoutPath); // recursive
 
   // layoutFull
   //  .nodes
@@ -239,10 +264,11 @@ RactiveEngine.prototype._getChildLayout = function(parsed) {
   parsed.t.forEach(function(item, index) {
     if (typeof item === 'object' && item.t === types.SECTION) {
       if (item.n === types.SECTION_EXTEND) {
-        extend = item.r;
         item.marked = true; // 标记为删除
+        extend = getNodeRef(item);
 
       } else if (item.n === types.SECTION_BLOCK) {
+
         var blockName = item.r;
         var blockContents = item.f;
 
