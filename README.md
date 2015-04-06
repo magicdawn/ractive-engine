@@ -45,7 +45,7 @@ It's synchronous,but view cache will be auto enabled when NODE_ENV set to produc
 - partialRoot : where to find partials
 	- {{>partials.some.partial}}
 		- if partialRoot specified, partialPath = `partialRoot/partials/some/partial`
-		- if partialRoot not specified, the template path which require use this partial will be used as the basePath & main as relativePath.
+		- if partialRoot not specified, the template path which require use this partial will be used as the basePath & partials/some/partial as relativePath.
 
 ### express support
 ```js
