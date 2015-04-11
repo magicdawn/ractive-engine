@@ -1,0 +1,35 @@
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>
+    {{#block title}}
+      default title
+    {{/block}}
+  </title>
+
+  <link rel="stylesheet" href="/common.css">
+  {{#block css}}
+  {{/block}}
+</head>
+<body>
+
+  <header>
+    header
+  </header>
+
+  <div class="main">
+    <aside>
+      sidebar
+    </aside>
+    <article>
+      {{#block body}}
+      {{/block}}
+    </article>
+  </div>
+
+  <script src="/common.js"></script>
+  {{#block js}}
+  <script src="default.js"></script>
+  {{/block}}
+</body>
+</html>

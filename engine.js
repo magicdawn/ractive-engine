@@ -8,6 +8,7 @@ var path = require('path');
 var fixPath = require('./util').fixPath;
 var getNodeRef = require('./util').getNodeRef;
 var debug = require('debug')('magicdawn:ractive-engine');
+var fmt = require('util').format;
 
 /**
  * do exports
@@ -174,6 +175,12 @@ RactiveEngine.prototype._getFull = function(templatePath) {
   var blocks = result.blocks;
   var partials = this._getPartials(templateParsed, templatePath);
 
+  // handle include
+  var includePartials = this._handleInclude(templateParsed, templatePath);
+  if (includePartials && includePartials.length) {
+    partials.push(includePartials);
+  }
+
   // no layout specified
   if (!layout) {
     return {
@@ -188,8 +195,13 @@ RactiveEngine.prototype._getFull = function(templatePath) {
   layout = fixPath(layout);
 
   var layoutPath;
-  if (layout[0] === '.' || !this.layoutRoot) { // relative path
+  if (layout[0] === '.') {
     layoutPath = path.resolve(path.dirname(templatePath), layout);
+  } else if (!this.layoutRoot) {
+    var msg = 'layoutRoot option is required for none relative layout :\n';
+    msg += fmt('{{#extend %s}}\n', layout);
+    msg += fmt('in file: %s\n', templatePath);
+    throw new Error(msg);
   } else {
     layoutPath = path.resolve(this.layoutRoot, layout);
   }
@@ -206,26 +218,41 @@ RactiveEngine.prototype._getFull = function(templatePath) {
       var node = nodes[index];
 
       if (typeof node === 'object') {
-        if (node.n === types.SECTION_BLOCK) {
+        if (node.n === types.SECTION_BLOCK || node.n === types.SECTION_PREPEND || node.n === types.SECTION_APPEND) {
           var blockName = node.r;
 
           if (blockName === 'body') { // layout中定义 block body 的地方
             // 删除这个body block 定义,body实现放在这里
             // splice(index,1,  block.f[0] ... )
-            var blockContents = blocks['bodyImplement'];
+            var blockContents = blocks['bodyImplement'].nodes;
             var args = [index, 1].concat(blockContents);
             [].splice.apply(nodes, args);
             index += blockContents.length - 1;
-
           } else if (blocks[blockName]) { // template 中定义了跟 layout一样的 block
-            // 把内容放进block里,行为 replace
-            // 未来支持 prepend/append 重构方便
 
-            var blockContents = blocks[blockName];
-            node.f = blockContents;
+            var block = blocks[blockName];
+            var blockType = block.type;
+            var blockContents = block.nodes;
+
+            if(!node.f){
+              node.f = [];
+            }
+
+            switch (blockType) {
+              case types.SECTION_PREPEND:
+                node.f = blockContents.concat(node.f);
+                break;
+              case types.SECTION_BLOCK:
+                node.f = blockContents;
+                break;
+              case types.SECTION_APPEND:
+                node.f = node.f.concat(blockContents);
+                break;
+              default:
+                break;
+            }
           }
         } else if (node.f) {
-
           visitNodes(node.f); // recursive
         }
       }
@@ -245,7 +272,12 @@ RactiveEngine.prototype._getFull = function(templatePath) {
  *
  * 返回{
  *   extend: 要extend的名称,
- *   blocks: 定义的blocks
+ *   blocks: {
+ *     some-block: {
+ *       nodes: [ 节点 ],
+ *       type: types.SECTION block/prepend/append
+ *     }
+ *   }
  * }
  */
 RactiveEngine.prototype._getChildLayout = function(parsed) {
@@ -266,19 +298,34 @@ RactiveEngine.prototype._getChildLayout = function(parsed) {
       if (item.n === types.SECTION_EXTEND) {
         item.marked = true; // 标记为删除
         extend = getNodeRef(item);
+        return;
+      }
 
-      } else if (item.n === types.SECTION_BLOCK) {
-
+      var type = item.n;
+      if (type === types.SECTION_APPEND || type === types.SECTION_BLOCK || type === types.SECTION_PREPEND) {
         var blockName = item.r;
         var blockContents = item.f;
 
         if (blockName === 'body') {
+          // 模板嵌套,此模板的body,当作parent 模板的body实现一部分
+          // 不做处理即可
           return;
         }
 
-        // TODO: 覆盖检测
+        // mark as a block,not body implement
         item.marked = true;
-        blocks[blockName] = blockContents;
+        blocks[blockName] = {
+          nodes: blockContents,
+
+          /**
+           * type <-> action
+           *
+           * prepend: prepend
+           * block: replace
+           * append: append
+           */
+          type: type
+        };
       }
     }
   });
@@ -288,7 +335,10 @@ RactiveEngine.prototype._getChildLayout = function(parsed) {
     return !(item.marked);
   });
   // careful
-  blocks['bodyImplement'] = bodyContents;
+  blocks['bodyImplement'] = {
+    nodes: bodyContents,
+    type: types.SECTION_BLOCK, // replace
+  };
 
   return {
     extend: extend, // extend
@@ -309,7 +359,6 @@ RactiveEngine.prototype._getPartials = function(templateParsed, templatePath) {
 
   /**
    * search for partials
-   * 深度优先 dfs
    */
   visitNodes(templateParsed.t);
 
@@ -327,12 +376,67 @@ RactiveEngine.prototype._getPartials = function(templateParsed, templatePath) {
   }
 
   return partials.map(function(item) {
+    if (!self.partialRoot) {
+      var msg = 'partialRoot option is required for partial:\n';
+      msg += fmt('{{>%s}}\n', item);
+      msg += fmt('in file: %s\n', templatePath);
+      throw new Error(msg);
+    };
+
     var relativePath = fixPath(item); // a.b.c -> a/b/c
-    var basePath = self.partialRoot || path.dirname(templatePath)
 
     return {
-      name: item,
-      path: path.resolve(basePath, relativePath)
+      name: relativePath,
+      path: path.resolve(self.partialRoot, relativePath)
     };
   });
+};
+
+/**
+ * handle {{#include foo}}{{/include}}
+ * @param  {Object} templateParsed
+ * @param  {String} templatePath
+ * @return {Array}  returns partials bring in by includes
+ */
+RactiveEngine.prototype._handleInclude = function(templateParsed, templatePath) {
+  var partials = [];
+  visitNodes(templateParsed.t);
+  return partials;
+
+  function visitNodes(nodes) {
+    for (var index = 0, len = nodes.length; index < len; index++) {
+      var node = nodes[index];
+
+      if (typeof node === 'object') {
+        if (node.t === types.SECTION && node.n === types.SECTION_INCLUDE) {
+          if (node.f.length) {
+            console.warn('RactiveEngine : include section should be empty\n' + fmt('in file : %s', templatePath));
+          }
+
+          var includeName = getNodeRef(node);
+          var includePath = fixPath(includeName);
+          if (includePath[0] === '.') {
+            includePath = path.resolve(templatePath, includePath);
+          } else if (!this.partialRoot) {
+            var msg = 'partialRoot option is required for none relative partial:\n';
+            msg += fmt('{{#include %s}}\n', includeName);
+            msg += fmt('in file: %s\n', templatePath);
+            throw new Error(msg);
+          } else {
+            includePath = path.resolve(this.partialRoot, includePath);
+          }
+
+          var includeResult = this._getFull(include);
+          partials = partials.concat(includeResult.partials);
+          var includeContents = includeResult.nodes;
+
+          var args = [index, 1].concat(includeContents);
+          nodes.splice.apply(nodes, args);
+          index += includeContents.length - 1;
+        } else if (node.f && node.f.length) {
+          visitNodes(node.f);
+        }
+      }
+    }
+  }
 };

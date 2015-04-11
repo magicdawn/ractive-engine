@@ -33,19 +33,20 @@ It's synchronous,but view cache will be auto enabled when NODE_ENV set to produc
 ### RactiveEngine class options
 - enableCache : whether enable view cache, if not specify explicitly , it's decided by `NODE_ENV === production`
 
-- ext : extension of view file,for engine look up files when ignore extension default to `.html`
+- ext : extension of view file,for engine look up files when ignore extension, defaults to `.html`
 
 - layoutRoot : where to find layouts
-	- {{#extend main}}{{/extend}}
-		- if layoutRoot specified, layoutPath = `layoutRoot/main`
-		- if layoutRoot not specified, the template path which require to extend `main` will be used as the basePath & main as relativePath.
-	
-	- {{extend './main'}} it's relative path
+	- `{{extend './main'}}`, `./main` is relative to the file.
+
+	- `{{#extend main}}{{/extend}}`,  layoutRoot is required here
+		and layout resolve to `<layoutRoot>/main`
 
 - partialRoot : where to find partials
-	- {{>partials.some.partial}}
-		- if partialRoot specified, partialPath = `partialRoot/partials/some/partial`
-		- if partialRoot not specified, the template path which require use this partial will be used as the basePath & partials/some/partial as relativePath.
+	- `{{>partials.some.partial}}`
+		partialRoot is required here,since it's built in Ractive , Use `{{#include relativePath}}`,will resolve to `<partialRoot>/partials/some/partial>`
+		
+	- `{{#include './partials/some/partial'}}` 
+		It's same to use `{{>...}}`,but this can include a relative path
 
 ### express support
 ```js

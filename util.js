@@ -1,8 +1,4 @@
 /**
- * useful utility definitions
- */
-
-/**
  * fix path for extend & partials
  *   1. 引号中保持原样
  *   2. 简写时, a.b.c -> a/b/c

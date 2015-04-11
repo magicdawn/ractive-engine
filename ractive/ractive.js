@@ -1719,8 +1719,12 @@
 		SECTION_WITH: 53,
 		SECTION_IF_WITH: 54,
 
+		// add by magicdawn
     SECTION_EXTEND: 55,
-    SECTION_BLOCK: 56
+    SECTION_BLOCK: 56,
+    SECTION_INCLUDE: 57,
+    SECTION_PREPEND: 58,
+    SECTION_APPEND: 59
 	};
 
 	/* utils/create.js */
@@ -2695,8 +2699,13 @@
 			'if-with': types.SECTION_IF_WITH,
 			'with': types.SECTION_WITH,
 			'unless': types.SECTION_UNLESS,
+
+			// add by magicdawn
       'extend': types.SECTION_EXTEND,
-      'block': types.SECTION_BLOCK
+      'block': types.SECTION_BLOCK,
+      'include': types.SECTION_INCLUDE,
+      'append': types.SECTION_APPEND,
+      'prepend': types.SECTION_PREPEND,
 		};
 	}( types );
 
