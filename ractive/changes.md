@@ -6,3 +6,6 @@
 
 1. add support to `{{#extend}}` & `{{#block}}` for `Ractive.parse`
 2. expose it's types enum as `Ractive.types`
+3. add support to `{{#include}}` ,`{{#prepend}}`,`{{#append}}`
+
+All modifications are marked with `// add by magicdawn`
