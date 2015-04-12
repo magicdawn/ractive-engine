@@ -6,8 +6,8 @@ var ractive = require('../');
  * settings
  */
 app.engine('.html', ractive.express({
-  layoutRoot: __dirname + '/views',
-  partialRoot: __dirname + '/views'
+  // layoutRoot: __dirname + '/views',
+  // partialRoot: __dirname + '/views'
 }));
 app.set('view engine', '.html');
 

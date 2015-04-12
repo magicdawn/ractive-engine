@@ -192,6 +192,7 @@ RactiveEngine.prototype._getFull = function(templatePath) {
   /**
    * layout exists
    */
+  var layoutName = layout;
   layout = fixPath(layout);
 
   var layoutPath;
@@ -199,7 +200,7 @@ RactiveEngine.prototype._getFull = function(templatePath) {
     layoutPath = path.resolve(path.dirname(templatePath), layout);
   } else if (!this.layoutRoot) {
     var msg = 'layoutRoot option is required for none relative layout :\n';
-    msg += fmt('{{#extend %s}}\n', layout);
+    msg += fmt('{{#extend %s}}\n', layoutName);
     msg += fmt('in file: %s\n', templatePath);
     throw new Error(msg);
   } else {
