@@ -1,6 +1,6 @@
 var options = {
-  layoutRoot: __dirname + '/views',
-  partialRoot: __dirname + '/views'
+  // layoutRoot: __dirname + '/views',
+  // partialRoot: __dirname + '/views'
 };
 
 var ractive = require('../').RactiveEngine(options);
