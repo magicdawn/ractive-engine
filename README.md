@@ -68,6 +68,16 @@ app.engine('.html',require('ractive-engine').express(options));
 {{/block}}
 ```
 
+```html
+{{#prepend someBlock}}
+{{/prepend}}
+```
+
+```html
+{{#append someBlock}}
+{{#/append}}
+```
+
 It's processed recursivly,that's same to jade's behavior.
 And template out of any block will be treat as a special `body` block. will fill layout's body block.
 #### for example:
@@ -139,10 +149,9 @@ As you see. that `I'll be in body.` does not belongs to any block. So it's speci
 check http://docs.ractivejs.org/latest/templates
 
 # TODO
-- add more test
-- add prepend/append support
-- set Ractive as git submodule
-- add ccc ds project support
+- [x] add more test
+- [x] add prepend/append support
+- [] set Ractive as git submodule
 
 # License
 the MIT License (magicdawn@qq.com)
