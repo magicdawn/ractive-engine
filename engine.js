@@ -234,7 +234,7 @@ RactiveEngine.prototype._getFull = function(templatePath) {
             var blockType = block.type;
             var blockContents = block.nodes;
 
-            if(!node.f){
+            if (!node.f) {
               node.f = [];
             }
 
@@ -386,7 +386,7 @@ RactiveEngine.prototype._getPartials = function(templateParsed, templatePath) {
     var relativePath = fixPath(item); // a.b.c -> a/b/c
 
     return {
-      name: relativePath,
+      name: item,
       path: path.resolve(self.partialRoot, relativePath)
     };
   });
@@ -399,6 +399,7 @@ RactiveEngine.prototype._getPartials = function(templateParsed, templatePath) {
  * @return {Array}  returns partials bring in by includes
  */
 RactiveEngine.prototype._handleInclude = function(templateParsed, templatePath) {
+  var self = this;
   var partials = [];
   visitNodes(templateParsed.t);
   return partials;
@@ -416,17 +417,17 @@ RactiveEngine.prototype._handleInclude = function(templateParsed, templatePath) 
           var includeName = getNodeRef(node);
           var includePath = fixPath(includeName);
           if (includePath[0] === '.') {
-            includePath = path.resolve(templatePath, includePath);
-          } else if (!this.partialRoot) {
+            includePath = path.resolve(path.dirname(templatePath), includePath);
+          } else if (!self.partialRoot) {
             var msg = 'partialRoot option is required for none relative partial:\n';
             msg += fmt('{{#include %s}}\n', includeName);
             msg += fmt('in file: %s\n', templatePath);
             throw new Error(msg);
           } else {
-            includePath = path.resolve(this.partialRoot, includePath);
+            includePath = path.resolve(self.partialRoot, includePath);
           }
 
-          var includeResult = this._getFull(include);
+          var includeResult = self._getFull(includePath);
           partials = partials.concat(includeResult.partials);
           var includeContents = includeResult.nodes;
 
