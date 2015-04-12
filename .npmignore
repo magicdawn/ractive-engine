@@ -1,3 +1,7 @@
 private
 test
+demo
 node_modules
+.git
+.gitignore
+.npmignore
