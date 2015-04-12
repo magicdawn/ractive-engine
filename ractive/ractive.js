@@ -14337,6 +14337,7 @@
 		return Ractive;
 	}( options, easing, interpolators, svg, magic, defineProperties, prototype, Promise, extend, Ractive_extend, parse, Ractive_initialise, circular );
 
+  // add by magicdawn
   Ractive.types = types;
 
 
