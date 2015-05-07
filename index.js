@@ -3,6 +3,7 @@
  */
 var Ractive = require('./ractive/ractive');
 var RactiveEngine = require('./engine');
+var path = require('path');
 
 /**
  * do exports
@@ -40,3 +41,36 @@ exports.express = function(options) {
     }
   };
 };
+
+/**
+ * koa framework support
+ *
+ * example:
+ *
+ *  ractive.koa(app,{
+ *    // viewRoot
+ *    viewRoot: __dirname + '/views'
+ *
+ *    // options , optional
+ *    ext: '.html',
+ *    enableCache: true,
+ *    partialRoot: __dirname + '/views',
+ *    layoutRoot: __dirname + '/views'
+ *  });
+ *
+ */
+// exports.koa = function(app, options) {
+//   var engine = new RactiveEngine(options);
+//   var viewRoot = path.resolve(options.viewRoot || './views');
+
+//   app.context.render = app.response.render = function(
+//     viewPath, locals, callback) {
+
+//     try {
+//       var result = engine.renderFile(viewPath, locals);
+//       callback(null, result);
+//     } catch (e) {
+//       callback(e);
+//     }
+//   };
+// };

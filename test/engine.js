@@ -62,6 +62,13 @@ describe('RactiveEngine', function() {
       assert($('script')[1].attribs.src.indexOf('prepend') > -1);
       assert($('script')[2].attribs.src.indexOf('default') > -1);
     });
+
+    it('append on attributes', function() {
+      var result = ractive.renderFile(__dirname + '/views/extend-block/attributes.html');
+      var $ = cheerio.load(result);
+      // console.log(result);
+      assert($('html').hasClass('ie8'));
+    });
   });
 
   describe('partials works ?', function() {

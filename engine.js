@@ -40,7 +40,8 @@ function RactiveEngine(options) {
   /**
    * view extension name
    */
-  this.ext = options.ext ? (options.ext[0] === '.' ? options.ext : '.' + options.ext) : '.html';
+  this.ext = options.ext ? (options.ext[0] === '.' ? options.ext : '.' +
+    options.ext) : '.html';
 
   /**
    * how to find layout & partials
@@ -48,8 +49,10 @@ function RactiveEngine(options) {
    * 如果没有设置两个root,那么就
    * 以template的path为base,resolve partial & layout的path
    */
-  this.layoutRoot = options.layoutRoot ? path.resolve(options.layoutRoot) : null;
-  this.partialRoot = options.partialRoot ? path.resolve(options.partialRoot) : null;
+  this.layoutRoot = options.layoutRoot ? path.resolve(options.layoutRoot) :
+    null;
+  this.partialRoot = options.partialRoot ? path.resolve(options.partialRoot) :
+    null;
 }
 
 /**
@@ -67,7 +70,7 @@ RactiveEngine.prototype.renderFile = function(viewPath, locals) {
   });
 
   return this._render(full.nodes, locals, readedPartials);
-}
+};
 
 /**
  * 为full加cache,partials 不存具体内容
@@ -90,20 +93,43 @@ RactiveEngine.prototype._getFinalFull = function(viewPath) {
    */
 
   function removeBlock(nodes) {
-    for (var index = 0, len = nodes.length; index < len; index++) {
+    for (var index = 0; index < nodes.length; index++) {
       var node = nodes[index];
       if (typeof node === 'object') {
-        if (node.n === types.SECTION_BLOCK) {
+
+        // block/append/prepend
+        if (node.n === types.SECTION_BLOCK ||
+          node.n === types.SECTION_PREPEND ||
+          node.n === types.SECTION_APPEND) {
+
           // 删除这个 block 定义,剥壳
           var blockContents = node.f;
           var args = [index, 1].concat(blockContents);
           [].splice.apply(nodes, args);
           index += blockContents.length - 1;
-        } else if (node.f) {
-          removeBlock(node.f);
+
+          continue;
+        }
+
+        // search for all keys
+        handleNode(node);
+
+        /*jshint -W082 */
+        function handleNode(node) {
+          // go deep
+          var keys = Object.keys(node);
+          keys.forEach(function(key) {
+            var val = node[key];
+
+            if (Array.isArray(val)) {
+              removeBlock(val);
+            } else if (typeof val === 'object') {
+              handleNode(val);
+            }
+          });
         }
       }
-    };
+    }
   }
 
   // 最后去除各个block壳
@@ -132,6 +158,8 @@ RactiveEngine.prototype._read = function(viewPath) {
       return this.cache[viewPath];
     } else {
       debug('reading file %s', viewPath);
+
+      /*jshint -W093 */
       return this.cache[viewPath] = fs.readFileSync(viewPath, 'utf8');
     }
   } else {
@@ -215,47 +243,77 @@ RactiveEngine.prototype._getFull = function(templatePath) {
   visitNodes(layoutFull.nodes);
 
   function visitNodes(nodes) {
-    for (var index = 0, len = nodes.length; index < len; index++) {
+    for (var index = 0; index < nodes.length; index++) {
       var node = nodes[index];
 
-      if (typeof node === 'object') {
-        if (node.n === types.SECTION_BLOCK || node.n === types.SECTION_PREPEND || node.n === types.SECTION_APPEND) {
-          var blockName = node.r;
+      // not object,pass
+      if (typeof node !== 'object') {
+        continue;
+      }
 
-          if (blockName === 'body') { // layout中定义 block body 的地方
-            // 删除这个body block 定义,body实现放在这里
-            // splice(index,1,  block.f[0] ... )
-            var blockContents = blocks['bodyImplement'].nodes;
-            var args = [index, 1].concat(blockContents);
-            [].splice.apply(nodes, args);
-            index += blockContents.length - 1;
-          } else if (blocks[blockName]) { // template 中定义了跟 layout一样的 block
+      // block/append/prepend
+      if (node.n === types.SECTION_BLOCK ||
+        node.n === types.SECTION_PREPEND ||
+        node.n === types.SECTION_APPEND) {
 
-            var block = blocks[blockName];
-            var blockType = block.type;
-            var blockContents = block.nodes;
+        var blockName = node.r;
+        var blockContents;
 
-            if (!node.f) {
-              node.f = [];
-            }
+        if (blockName === 'body') { // layout中定义 block body 的地方
+          // 删除这个body block 定义,body实现放在这里
+          // splice(index,1,  block.f[0] ... )
+          blockContents = blocks['bodyImplement'].nodes;
+          var args = [index, 1].concat(blockContents);
+          [].splice.apply(nodes, args);
+          index += blockContents.length - 1;
+        } else if (blocks[blockName]) { // template 中定义了跟 layout一样的 block
 
-            switch (blockType) {
-              case types.SECTION_PREPEND:
-                node.f = blockContents.concat(node.f);
-                break;
-              case types.SECTION_BLOCK:
-                node.f = blockContents;
-                break;
-              case types.SECTION_APPEND:
-                node.f = node.f.concat(blockContents);
-                break;
-              default:
-                break;
-            }
+          var block = blocks[blockName];
+          var blockType = block.type;
+          blockContents = block.nodes;
+
+          if (!node.f) {
+            node.f = [];
           }
-        } else if (node.f) {
-          visitNodes(node.f); // recursive
+
+          switch (blockType) {
+            case types.SECTION_PREPEND:
+              node.f = blockContents.concat(node.f);
+              break;
+            case types.SECTION_BLOCK:
+              node.f = blockContents;
+              break;
+            case types.SECTION_APPEND:
+              node.f = node.f.concat(blockContents);
+              break;
+            default:
+              break;
+          }
         }
+        continue;
+      }
+
+      // go deep
+      handleNode(node);
+
+      /* jshint -W082 */
+      function handleNode(node) {
+        // node is `object` here
+
+        // not only `f`, f stands for child nodes
+        // `m` menbers
+        // `a` attributes
+        // and many we don't know,so use Object.keys
+        var keys = Object.keys(node);
+        keys.forEach(function(key) {
+          var val = node[key];
+
+          if (Array.isArray(val)) {
+            visitNodes(val);
+          } else if (typeof val === 'object') {
+            handleNode(val);
+          }
+        });
       }
     }
   }
@@ -303,7 +361,8 @@ RactiveEngine.prototype._getChildLayout = function(parsed) {
       }
 
       var type = item.n;
-      if (type === types.SECTION_APPEND || type === types.SECTION_BLOCK || type === types.SECTION_PREPEND) {
+      if (type === types.SECTION_APPEND || type === types.SECTION_BLOCK ||
+        type === types.SECTION_PREPEND) {
         var blockName = item.r;
         var blockContents = item.f;
 
@@ -335,6 +394,7 @@ RactiveEngine.prototype._getChildLayout = function(parsed) {
   var bodyContents = parsed.t.filter(function(item) {
     return !(item.marked);
   });
+
   // careful
   blocks['bodyImplement'] = {
     nodes: bodyContents,
@@ -382,7 +442,7 @@ RactiveEngine.prototype._getPartials = function(templateParsed, templatePath) {
       msg += fmt('{{>%s}}\n', item);
       msg += fmt('in file: %s\n', templatePath);
       throw new Error(msg);
-    };
+    }
 
     var relativePath = fixPath(item); // a.b.c -> a/b/c
 
@@ -406,13 +466,14 @@ RactiveEngine.prototype._handleInclude = function(templateParsed, templatePath) 
   return partials;
 
   function visitNodes(nodes) {
-    for (var index = 0, len = nodes.length; index < len; index++) {
+    for (var index = 0; index < nodes.length; index++) {
       var node = nodes[index];
 
       if (typeof node === 'object') {
         if (node.t === types.SECTION && node.n === types.SECTION_INCLUDE) {
           if (node.f.length) {
-            console.warn('RactiveEngine : include section should be empty\n' + fmt('in file : %s', templatePath));
+            console.warn('RactiveEngine : include section should be empty\n' +
+              fmt('in file : %s', templatePath));
           }
 
           var includeName = getNodeRef(node);
@@ -420,7 +481,8 @@ RactiveEngine.prototype._handleInclude = function(templateParsed, templatePath) 
           if (includePath[0] === '.') {
             includePath = path.resolve(path.dirname(templatePath), includePath);
           } else if (!self.partialRoot) {
-            var msg = 'partialRoot option is required for none relative partial:\n';
+            var msg =
+              'partialRoot option is required for none relative partial:\n';
             msg += fmt('{{#include %s}}\n', includeName);
             msg += fmt('in file: %s\n', templatePath);
             throw new Error(msg);
