@@ -7,7 +7,7 @@ var fs = require('fs');
 var path = require('path');
 var fixPath = require('./util').fixPath;
 var getNodeRef = require('./util').getNodeRef;
-var debug = require('debug')('magicdawn:ractive-engine');
+var debug = require('debug')('ractive-engine');
 var fmt = require('util').format;
 
 /**
