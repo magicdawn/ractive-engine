@@ -1,6 +1,6 @@
 {
   "name": "ractive-engine",
-  "version": "0.0.3",
+  "version": "0.1.0",
   "description": "Template engine for node.js with Ractive.js",
   "main": "index.js",
   "directories": {
