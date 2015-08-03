@@ -79,7 +79,6 @@ app.engine('.html',require('ractive-engine').express(options));
 ```
 
 It's processed recursivly,that's same to jade's behavior.
-And template out of any block will be treat as a special `body` block. will fill layout's body block.
 #### for example:
 
 layout.html
@@ -117,7 +116,9 @@ I'm the title
 I will be the header.
 {{/block}}
 
+{{#block body}}
 I'll be in body.
+{{/block}}
 
 {{#block footer}}
 I will be the footer
@@ -142,16 +143,13 @@ will get
 </body>
 </html>
 ```
-As you see. that `I'll be in body.` does not belongs to any block. So it's special `body` block. This behavior is same to `renderBody()` in ASP.NET MVC Razor.
-
 
 ### Other Ractive support syntax
 check http://docs.ractivejs.org/latest/templates
 
 # TODO
-- [x] add more test
-- [x] add prepend/append support
-- [] set Ractive as git submodule
+- [ ] upgrade Ractive to v0.7.x
+- [ ] add some benchmark
 
 # License
-the MIT License (magicdawn@qq.com)
+the MIT License http://magicdawn.mit-license.org

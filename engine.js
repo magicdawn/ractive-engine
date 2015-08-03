@@ -1,3 +1,11 @@
+/**!
+ *
+ * Based on Ractive template spec
+ * https://github.com/ractivejs/template-spec
+ *
+ * @author magicdawn<magicdawn@qq.com>
+ */
+
 /**
  * module dependencies
  */
@@ -7,7 +15,7 @@ var fs = require('fs');
 var path = require('path');
 var fixPath = require('./util').fixPath;
 var getNodeRef = require('./util').getNodeRef;
-var debug = require('debug')('ractive-engine');
+var debug = require('debug')('ractive:engine');
 var fmt = require('util').format;
 
 /**
@@ -44,16 +52,12 @@ function RactiveEngine(options) {
     options.ext) : '.html';
 
   /**
-   * how to find layout & partials
-   *
-   * 如果没有设置两个root,那么就
-   * 以template的path为base,resolve partial & layout的path
+   * how to find layout & partials & includes
    */
-  this.layoutRoot = options.layoutRoot ? path.resolve(options.layoutRoot) :
-    null;
-  this.partialRoot = options.partialRoot ? path.resolve(options.partialRoot) :
-    null;
-}
+  this.templateLoader = function(request, resolveFrom) {
+    return path.join(resolveFrom, request);
+  };
+};
 
 /**
  * renderFile def
@@ -106,7 +110,7 @@ RactiveEngine.prototype._getFinalFull = function(viewPath) {
           var blockContents = node.f;
           var args = [index, 1].concat(blockContents);
           [].splice.apply(nodes, args);
-          index += blockContents.length - 1;
+          index--; // 回退一个. 在blocks 嵌套的情况下使用
 
           continue;
         }
@@ -148,7 +152,7 @@ RactiveEngine.prototype._getFinalFull = function(viewPath) {
  */
 RactiveEngine.prototype._read = function(viewPath) {
   viewPath = path.resolve(viewPath);
-  if (path.extname(viewPath) === '') {
+  if (!path.extname(viewPath)) {
     viewPath += this.ext;
   }
 
@@ -198,15 +202,19 @@ RactiveEngine.prototype._getFull = function(templatePath) {
    */
   var template = this._read(templatePath);
   var templateParsed = Ractive.parse(template);
+
+  // extend & blocks
   var result = this._getChildLayout(templateParsed);
   var layout = result.extend;
   var blocks = result.blocks;
+
+  // partials
   var partials = this._getPartials(templateParsed, templatePath);
 
   // handle include
   var includePartials = this._handleInclude(templateParsed, templatePath);
   if (includePartials && includePartials.length) {
-    partials.push(includePartials);
+    partials = partials.concat(includePartials);
   }
 
   // no layout specified
@@ -220,22 +228,12 @@ RactiveEngine.prototype._getFull = function(templatePath) {
   /**
    * layout exists
    */
-  var layoutName = layout;
   layout = fixPath(layout);
-
-  var layoutPath;
-  if (layout[0] === '.') {
-    layoutPath = path.resolve(path.dirname(templatePath), layout);
-  } else if (!this.layoutRoot) {
-    var msg = 'layoutRoot option is required for none relative layout :\n';
-    msg += fmt('{{#extend %s}}\n', layoutName);
-    msg += fmt('in file: %s\n', templatePath);
-    throw new Error(msg);
-  } else {
-    layoutPath = path.resolve(this.layoutRoot, layout);
+  layout = this.templateLoader(layout, path.dirname(templatePath));
+  var layoutFull = this._getFull(layout); // recursive
+  if (layoutFull.partials && layoutFull.partials.length) {
+    partials = partials.concat(layoutFull.partials);
   }
-
-  var layoutFull = this._getFull(layoutPath); // recursive
 
   // layoutFull
   //  .nodes
@@ -259,15 +257,7 @@ RactiveEngine.prototype._getFull = function(templatePath) {
         var blockName = node.r;
         var blockContents;
 
-        if (blockName === 'body') { // layout中定义 block body 的地方
-          // 删除这个body block 定义,body实现放在这里
-          // splice(index,1,  block.f[0] ... )
-          blockContents = blocks['bodyImplement'].nodes;
-          var args = [index, 1].concat(blockContents);
-          [].splice.apply(nodes, args);
-          index += blockContents.length - 1;
-        } else if (blocks[blockName]) { // template 中定义了跟 layout一样的 block
-
+        if (blocks[blockName]) { // template 中定义了跟 layout一样的 block
           var block = blocks[blockName];
           var blockType = block.type;
           blockContents = block.nodes;
@@ -289,8 +279,20 @@ RactiveEngine.prototype._getFull = function(templatePath) {
             default:
               break;
           }
+        } else if (node.f && node.f.length) { 
+          /**
+           * block 嵌套的时候, block_b 在 block_a 里面
+           * block_a = {
+           *   f: [
+           *     { block_a }
+           *   ],
+           *   type = block
+           * }
+           *
+           * 这个时候blocks[blocks_a] 为空, 但是可能有 blocks[blocks_b]
+           */
+          visitNodes(node.f);
         }
-        continue;
       }
 
       // go deep
@@ -320,7 +322,7 @@ RactiveEngine.prototype._getFull = function(templatePath) {
 
   return {
     nodes: layoutFull.nodes,
-    partials: layoutFull.partials.concat(partials)
+    partials: partials
   };
 };
 
@@ -354,26 +356,26 @@ RactiveEngine.prototype._getChildLayout = function(parsed) {
    */
   parsed.t.forEach(function(item, index) {
     if (typeof item === 'object' && item.t === types.SECTION) {
+
+      // 1. extend
       if (item.n === types.SECTION_EXTEND) {
-        item.marked = true; // 标记为删除
+        if (extend) {
+          var msg = '{{#extend}} should only happen once';
+          throw new Error(msg);
+        }
         extend = getNodeRef(item);
         return;
       }
 
+      // 2. block/prepend/append
       var type = item.n;
-      if (type === types.SECTION_APPEND || type === types.SECTION_BLOCK ||
+      if (type === types.SECTION_APPEND ||
+        type === types.SECTION_BLOCK ||
         type === types.SECTION_PREPEND) {
+
         var blockName = item.r;
         var blockContents = item.f;
 
-        if (blockName === 'body') {
-          // 模板嵌套,此模板的body,当作parent 模板的body实现一部分
-          // 不做处理即可
-          return;
-        }
-
-        // mark as a block,not body implement
-        item.marked = true;
         blocks[blockName] = {
           nodes: blockContents,
 
@@ -389,17 +391,6 @@ RactiveEngine.prototype._getChildLayout = function(parsed) {
       }
     }
   });
-
-  // 实现 parent layout 的body block
-  var bodyContents = parsed.t.filter(function(item) {
-    return !(item.marked);
-  });
-
-  // careful
-  blocks['bodyImplement'] = {
-    nodes: bodyContents,
-    type: types.SECTION_BLOCK, // replace
-  };
 
   return {
     extend: extend, // extend
@@ -421,36 +412,54 @@ RactiveEngine.prototype._getPartials = function(templateParsed, templatePath) {
   /**
    * search for partials
    */
-  visitNodes(templateParsed.t);
+  visitItems(templateParsed.t);
 
-  function visitNodes(nodes) {
-    nodes.forEach(function(node) {
-      if (typeof node === 'object') {
-        if (node.t === types.PARTIAL) { // partial 节点
-          var partialName = node.r;
+  function visitItems(items) {
+    items.forEach(function(item) {
+      if (typeof item === 'object') {
+        if (item.t === types.PARTIAL) { // partial 节点
+          var partialName = item.r;
           partials.push(partialName);
-        } else if (node.f && node.f.length > 0) {
-          visitNodes(node.f);
+        } else if (item.f && item.f.length > 0) {
+          visitItems(item.f);
         }
       }
     });
   }
 
-  return partials.map(function(item) {
-    if (!self.partialRoot) {
-      var msg = 'partialRoot option is required for partial:\n';
-      msg += fmt('{{>%s}}\n', item);
-      msg += fmt('in file: %s\n', templatePath);
-      throw new Error(msg);
+  partials = partials.map(function(item) {
+    if (!self.templateLoader) {
+      var msg = 'templateLoader is required for using {{>partial}}';
+      return self._error(msg, templatePath);
     }
 
-    var relativePath = fixPath(item); // a.b.c -> a/b/c
+    var request = fixPath(item); // a.b.c -> a/b/c
+    var resolveFrom = path.dirname(templatePath); // dir
+    var partial = self.templateLoader(request, resolveFrom);
 
     return {
       name: item,
-      path: path.resolve(self.partialRoot, relativePath)
+      path: partial
     };
   });
+
+  /**
+   * subpartials are not usual
+   */
+  return partials;
+
+  // for return
+  var ret = partials.slice();
+
+  // search subpartials
+  partials.forEach(function(partial) {
+    var subPartials = self._getFull(partial.path);
+    if (subpartials && subpartials.length) {
+      ret = ret.concat(subPartials);
+    }
+  });
+
+  return ret;
 };
 
 /**
@@ -471,26 +480,11 @@ RactiveEngine.prototype._handleInclude = function(templateParsed, templatePath) 
 
       if (typeof node === 'object') {
         if (node.t === types.SECTION && node.n === types.SECTION_INCLUDE) {
-          if (node.f.length) {
-            console.warn('RactiveEngine : include section should be empty\n' +
-              fmt('in file : %s', templatePath));
-          }
+          var include = getNodeRef(node); // a.b.c
+          include = fixPath(include); // a.b.c -> a/b/c
+          include = self.templateLoader(include, path.dirname(templatePath));// path
 
-          var includeName = getNodeRef(node);
-          var includePath = fixPath(includeName);
-          if (includePath[0] === '.') {
-            includePath = path.resolve(path.dirname(templatePath), includePath);
-          } else if (!self.partialRoot) {
-            var msg =
-              'partialRoot option is required for none relative partial:\n';
-            msg += fmt('{{#include %s}}\n', includeName);
-            msg += fmt('in file: %s\n', templatePath);
-            throw new Error(msg);
-          } else {
-            includePath = path.resolve(self.partialRoot, includePath);
-          }
-
-          var includeResult = self._getFull(includePath);
+          var includeResult = self._getFull(include);
           partials = partials.concat(includeResult.partials);
           var includeContents = includeResult.nodes;
 
@@ -503,4 +497,12 @@ RactiveEngine.prototype._handleInclude = function(templateParsed, templatePath) 
       }
     }
   }
+};
+
+/**
+ * throw a new Error
+ */
+RactiveEngine.prototype._error = function(msg, file) {
+  msg = (msg || '') + fmt('\n in file : %s', file);
+  throw new Error(msg);
 };

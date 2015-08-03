@@ -59,18 +59,3 @@ exports.express = function(options) {
  *  });
  *
  */
-// exports.koa = function(app, options) {
-//   var engine = new RactiveEngine(options);
-//   var viewRoot = path.resolve(options.viewRoot || './views');
-
-//   app.context.render = app.response.render = function(
-//     viewPath, locals, callback) {
-
-//     try {
-//       var result = engine.renderFile(viewPath, locals);
-//       callback(null, result);
-//     } catch (e) {
-//       callback(e);
-//     }
-//   };
-// };

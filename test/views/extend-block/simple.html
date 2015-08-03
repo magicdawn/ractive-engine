@@ -1,9 +1,7 @@
-{{#extend './simple_layout'}}
+{{#extend 'simple_layout'}}
 {{/extend}}
 
-{{#block title}}
-Awesome template Engine for Node.js
-{{/block}}
+{{#block title}}Awesome template Engine for Node.js{{/block}}
 
 {{#block js}}
   <script src="/simple.js"></script>
@@ -13,6 +11,8 @@ Awesome template Engine for Node.js
   <link rel="stylesheet" href="/simple.css">
 {{/block}}
 
+{{#block body}}
 <div class="content">
   hello ractive-engine
 </div>
+{{/block}}
