@@ -54,9 +54,13 @@ function RactiveEngine(options) {
   /**
    * how to find layout & partials & includes
    */
-  this.templateLoader = function(request, resolveFrom) {
-    return path.join(resolveFrom, request);
-  };
+  if (typeof options.templateLoader === 'function') {
+    this.templateLoader = options.templateLoader;
+  } else {
+    this.templateLoader = function(request, resolveFrom) { // default template loader
+      return path.join(resolveFrom, request);
+    };
+  }
 };
 
 /**
@@ -279,7 +283,7 @@ RactiveEngine.prototype._getFull = function(templatePath) {
             default:
               break;
           }
-        } else if (node.f && node.f.length) { 
+        } else if (node.f && node.f.length) {
           /**
            * block 嵌套的时候, block_b 在 block_a 里面
            * block_a = {
@@ -482,7 +486,7 @@ RactiveEngine.prototype._handleInclude = function(templateParsed, templatePath) 
         if (node.t === types.SECTION && node.n === types.SECTION_INCLUDE) {
           var include = getNodeRef(node); // a.b.c
           include = fixPath(include); // a.b.c -> a/b/c
-          include = self.templateLoader(include, path.dirname(templatePath));// path
+          include = self.templateLoader(include, path.dirname(templatePath)); // path
 
           var includeResult = self._getFull(include);
           partials = partials.concat(includeResult.partials);

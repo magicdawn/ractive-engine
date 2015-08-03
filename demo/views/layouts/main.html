@@ -1,6 +1,7 @@
 {{#extend './basic'}}
 {{/extend}}
 
+{{#block body}}
 <style>
   .content-left{
     float: left;
@@ -15,12 +16,12 @@
     background-color: #abc;
   }
 </style>
-
 <div class="content-left">
   content-left
 </div>
 
 <div class="content-right">
-  {{#block body}}
+  {{#block bodyRight}}
   {{/block}}
 </div>
+{{/block}}
