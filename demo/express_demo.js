@@ -3,13 +3,8 @@ var app = express();
 var ractive = require('../');
 var path = require('path');
 
-/**
- * settings
- */
-app.engine('.html', ractive.express({
-  // layoutRoot: __dirname + '/views',
-  // partialRoot: __dirname + '/views'
-}));
+app.engine('.html', ractive.express(
+));
 
 // set html view engine
 app.set('view engine', '.html');
