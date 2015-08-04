@@ -1,0 +1,4 @@
+*.log
+private
+node_modules
+coverage
