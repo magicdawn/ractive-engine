@@ -1,4 +1,6 @@
 # ractive-engine
+
+[![Greenkeeper badge](https://badges.greenkeeper.io/magicdawn/ractive-engine.svg)](https://greenkeeper.io/)
 Template engine for node.js with Ractive.js.
 
 [![Build Status](https://travis-ci.org/magicdawn/ractive-engine.svg?branch=master)](https://travis-ci.org/magicdawn/ractive-engine)
